@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI 精准学习助手</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --surface2: #f0efe9;
+    --border: #e2e0d8; --border2: #cccab8;
+    --text: #1a1917; --text2: #6b6960; --text3: #9e9c93;
+    --accent: #1a1917; --accent-fg: #ffffff;
+    --green-bg: #eaf3de; --green-fg: #27500a;
+    --red-bg: #fcebeb; --red-fg: #791f1f;
+    --blue-bg: #e6f1fb; --blue-fg: #0c447c;
+    --amber-bg: #faeeda; --amber-fg: #633806;
+    --purple-bg: #eeedfe; --purple-fg: #3c3489;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412; --surface: #1e1d1a; --surface2: #272521;
+      --border: #2e2c27; --border2: #3d3b34;
+      --text: #f0ede6; --text2: #9e9c93; --text3: #6b6960;
+      --accent: #f0ede6; --accent-fg: #141412;
+      --green-bg: #173404; --green-fg: #c0dd97;
+      --red-bg: #501313; --red-fg: #f7c1c1;
+      --blue-bg: #042c53; --blue-fg: #b5d4f4;
+      --amber-bg: #412402; --amber-fg: #fac775;
+      --purple-bg: #26215c; --purple-fg: #cecbf6;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .main { flex: 1; padding: 32px 40px; max-width: 820px; }
+  .logo { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .logo-sub { font-size: 12px; color: var(--text3); margin-bottom: 20px; }
+  .nav-label { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; margin-top: 16px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; color: var(--text2); transition: all 0.12s; margin-bottom: 2px; border: none; background: transparent; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent); color: var(--accent-fg); }
+  .nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding-top: 16px; }
+  .config-toggle { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: var(--text2); background: transparent; border: 1px solid var(--border); width: 100%; transition: all 0.12s; font-family: inherit; }
+  .config-toggle:hover { background: var(--surface2); }
+  .api-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red-fg); margin-left: auto; flex-shrink: 0; }
+  .api-dot.ok { background: var(--green-fg); }
+
+  /* Timer */
+  .timer-widget { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .timer-phase { font-size: 11px; color: var(--text2); text-align: center; margin-bottom: 6px; padding: 3px 8px; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .timer-display { font-size: 30px; font-weight: 600; text-align: center; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
+  .timer-display.warning { color: var(--amber-fg); }
+  .timer-display.done { color: var(--red-fg); }
+  .timer-sub { font-size: 11px; color: var(--text3); text-align: center; margin-bottom: 10px; }
+  .timer-progress { height: 3px; background: var(--border); border-radius: 99px; margin-bottom: 10px; overflow: hidden; }
+  .timer-bar { height: 100%; background: var(--accent); border-radius: 99px; transition: width 1s linear; }
+  .timer-bar.warning { background: var(--amber-fg); }
+  .timer-bar.done { background: var(--red-fg); }
+  .timer-presets { display: flex; gap: 4px; margin-bottom: 8px; }
+  .timer-preset { flex: 1; padding: 5px 2px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent; cursor: pointer; font-size: 11px; color: var(--text3); font-family: inherit; transition: all 0.12s; }
+  .timer-preset:hover { background: var(--surface); color: var(--text2); }
+  .timer-btns { display: flex; gap: 6px; }
+  .timer-btn { flex: 1; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--surface); cursor: pointer; font-size: 12px; color: var(--text2); font-family: inherit; transition: all 0.12s; }
+  .timer-btn:hover { background: var(--surface2); color: var(--text); }
+
+  /* Config modal */
+  .config-panel { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.45); align-items: center; justify-content: center; }
+  .config-panel.open { display: flex; }
+  .config-box { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 28px; width: 480px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+  .config-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .config-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.04em; }
+  .field select, .field input { width: 100%; padding: 9px 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .field select:focus, .field input:focus { border-color: var(--accent); }
+  .field .hint { font-size: 12px; color: var(--text3); margin-top: 5px; }
+  .field .hint a { color: var(--blue-fg); text-decoration: none; }
+  .price-tip { font-size: 13px; padding: 10px 14px; background: var(--amber-bg); color: var(--amber-fg); border-radius: var(--radius-sm); margin-bottom: 16px; }
+  .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn { padding: 8px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--surface); cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text); transition: all 0.12s; font-family: inherit; }
+  .btn:hover { background: var(--surface2); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn.primary:hover { opacity: 0.85; }
+
+  /* Flow bar */
+  .flow-bar { display: flex; margin-bottom: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .flow-step { flex: 1; padding: 10px 6px; text-align: center; font-size: 12px; color: var(--text3); border-right: 1px solid var(--border); cursor: pointer; transition: all 0.12s; line-height: 1.4; }
+  .flow-step:last-child { border-right: none; cursor: default; }
+  .flow-step:hover:not(:last-child) { background: var(--surface2); color: var(--text2); }
+  .flow-step.current { background: var(--accent); color: var(--accent-fg); }
+  .flow-step.done { background: var(--green-bg); color: var(--green-fg); }
+  .flow-num { display: block; font-size: 10px; margin-bottom: 2px; opacity: 0.7; }
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .panel-desc { font-size: 14px; color: var(--text2); margin-bottom: 24px; padding: 12px 16px; background: var(--surface2); border-radius: var(--radius-sm); border-left: 3px solid var(--border2); }
+  .section-label { font-size: 12px; font-weight: 600; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .input-row input, .input-row select { flex: 1; padding: 9px 14px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; }
+  .input-row input:focus, .input-row select:focus { border-color: var(--accent); }
+  textarea { width: 100%; min-height: 90px; resize: vertical; padding: 10px 14px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; display: block; }
+  textarea:focus { border-color: var(--accent); }
+  .response-box { margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; font-size: 14px; line-height: 1.8; color: var(--text); white-space: pre-wrap; min-height: 80px; }
+  .response-box.empty { color: var(--text3); font-style: italic; }
+  .response-box.loading { color: var(--text3); }
+  .response-box.loading::after { content: '▌'; animation: blink 0.8s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+  /* Quiz */
+  .quiz-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; }
+  .quiz-q { font-size: 14px; font-weight: 500; margin-bottom: 10px; }
+  .quiz-answer { width: 100%; padding: 8px 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; }
+  .quiz-answer:focus { border-color: var(--accent); }
+
+  /* Feynman */
+  .mode-toggle { display: flex; border: 1px solid var(--border2); border-radius: var(--radius-sm); overflow: hidden; width: fit-content; margin-bottom: 12px; }
+  .mode-btn { padding: 8px 20px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text2); font-family: inherit; transition: all 0.12s; }
+  .mode-btn.active { background: var(--accent); color: var(--accent-fg); }
+  .mode-btn:not(.active):hover { background: var(--surface2); }
+  .mode-hint { font-size: 13px; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 14px; border-left: 3px solid; }
+  .mode-hint.novice { background: var(--blue-bg); color: var(--blue-fg); border-color: var(--blue-fg); }
+  .mode-hint.professor { background: var(--purple-bg); color: var(--purple-fg); border-color: var(--purple-fg); }
+  .chat-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-top: 16px; }
+  .chat-box { height: 340px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .chat-msg { max-width: 82%; padding: 10px 14px; border-radius: var(--radius); font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+  .chat-msg.user { align-self: flex-end; background: var(--accent); color: var(--accent-fg); border-bottom-right-radius: 3px; }
+  .chat-msg.ai { align-self: flex-start; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+  .chat-msg.ai.prof { border-left: 3px solid var(--purple-fg); }
+  .chat-input { display: flex; border-top: 1px solid var(--border); }
+  .chat-input input { flex: 1; padding: 12px 16px; border: none; outline: none; font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); }
+  .chat-input button { padding: 12px 20px; border: none; border-left: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 14px; color: var(--text2); font-family: inherit; transition: all 0.12s; }
+  .chat-input button:hover { background: var(--surface2); color: var(--text); }
+
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .tag-blue { background: var(--blue-bg); color: var(--blue-fg); }
+  .tag-green { background: var(--green-bg); color: var(--green-fg); }
+  .tag-amber { background: var(--amber-bg); color: var(--amber-fg); }
+  .tag-red { background: var(--red-bg); color: var(--red-fg); }
+
+  @media (max-width: 680px) {
+    .shell { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; }
+    .timer-widget { display: none; }
+    .main { padding: 20px 16px; }
+    .flow-step { font-size: 11px; padding: 8px 2px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo">AI 学习助手</div>
+    <div class="logo-sub">高效学习</div>
+
+    <div class="timer-widget">
+      <div class="timer-phase" id="timer-phase">准备开始</div>
+      <div class="timer-display" id="timer-display">90:00</div>
+      <div class="timer-sub" id="timer-sub">AI 辅助学习阶段</div>
+      <div class="timer-progress"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+      <div class="timer-presets">
+        <button class="timer-preset" onclick="setTimer(90)">90分钟</button>
+        <button class="timer-preset" onclick="setTimer(60)">60分钟</button>
+        <button class="timer-preset" onclick="setTimer(45)">45分钟</button>
+      </div>
+      <div class="timer-btns">
+        <button class="timer-btn" id="timer-start-btn" onclick="toggleTimer()">▶ 开始</button>
+        <button class="timer-btn" onclick="resetTimer()">↺ 重置</button>
+      </div>
+    </div>
+
+    <div class="nav-label">学习模式</div>
+    <button class="nav-item active" id="nav-map" onclick="switchPanel('map',this)"><span class="icon">🗺</span> 学习地图</button>
+    <button class="nav-item" id="nav-explain" onclick="switchPanel('explain',this)"><span class="icon">💡</span> 通俗讲解</button>
+    <button class="nav-item" id="nav-quiz" onclick="switchPanel('quiz',this)"><span class="icon">📝</span> 私教刷题</button>
+    <button class="nav-item" id="nav-feynman" onclick="switchPanel('feynman',this)"><span class="icon">🔬</span> 费曼检验</button>
+
+    <div class="sidebar-footer">
+      <button class="config-toggle" onclick="openConfig()">
+        ⚙️ API 配置
+        <span class="api-dot" id="api-dot"></span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- Flow bar -->
+    <div class="flow-bar">
+      <div class="flow-step current" id="flow-0" onclick="switchPanel('map',document.getElementById('nav-map'))">
+        <span class="flow-num">① 15min</span>学习地图
+      </div>
+      <div class="flow-step" id="flow-1" onclick="switchPanel('explain',document.getElementById('nav-explain'))">
+        <span class="flow-num">② 20min</span>通俗讲解
+      </div>
+      <div class="flow-step" id="flow-2" onclick="switchPanel('quiz',document.getElementById('nav-quiz'))">
+        <span class="flow-num">③ 20min</span>私教刷题
+      </div>
+      <div class="flow-step" id="flow-3" onclick="switchPanel('feynman',document.getElementById('nav-feynman'))">
+        <span class="flow-num">④ 35min</span>费曼检验
+      </div>
+      <div class="flow-step" id="flow-4">
+        <span class="flow-num">⑤ 之后</span>纸质刷题
+      </div>
+    </div>
+
+    <!-- 学习地图 -->
+    <div class="panel active" id="panel-map">
+      <div class="panel-title">学习地图</div>
+      <div class="panel-desc">告诉 AI 你的背景，它会跳过你已掌握的内容，只给你真正需要的 20% 核心。</div>
+      <div class="section-label">学习主题</div>
+      <div class="input-row">
+        <input type="text" id="map-topic" placeholder="例如：操作系统进程调度、高数极限与连续、计网TCP/IP..." />
+        <select id="map-level" style="max-width:110px;">
+          <option value="零基础">零基础</option>
+          <option value="学过但忘了" selected>学过忘了</option>
+          <option value="初级">初级</option>
+          <option value="中级">中级</option>
+        </select>
+      </div>
+      <div class="section-label">你的背景（帮 AI 裁剪，可选）</div>
+      <div class="input-row">
+        <input type="text" id="map-background" placeholder="例如：宾大CS背景，数据结构还行，操作系统调度算法比较陌生..." />
+      </div>
+      <div class="tags">
+        <span class="tag tag-blue">核心知识点</span>
+        <span class="tag tag-green">裁剪后路径</span>
+        <span class="tag tag-amber">阶段目标</span>
+        <span class="tag tag-red">考研重点提示</span>
+      </div>
+      <div class="action-row">
+        <button class="btn primary" onclick="runMap()">生成学习地图 →</button>
+        <button class="btn" onclick="markDone(0);switchPanel('explain',document.getElementById('nav-explain'))">完成，去讲解 →</button>
+      </div>
+      <div class="response-box empty" id="map-result">个性化学习地图将在这里生成...</div>
+    </div>
+
+    <!-- 通俗讲解 -->
+    <div class="panel" id="panel-explain">
+      <div class="panel-title">通俗讲解</div>
+      <div class="panel-desc">复杂概念用大白话 + 比喻讲透。先输入知识点，讲完之后可以继续追问——比如"单链表的插入具体怎么操作？"，历史不会丢。</div>
+      <div class="input-row">
+        <input type="text" id="explain-topic" placeholder="例如：链表的指针操作、贝叶斯定理、虚拟内存分页..." />
+        <button class="btn primary" onclick="startExplain()">开始讲解 →</button>
+        <button class="btn" onclick="clearExplain()">清空对话</button>
+      </div>
+      <div class="chat-wrap" id="explain-wrap" style="display:none;">
+        <div class="chat-box" id="explain-chat"></div>
+        <div class="chat-input">
+          <textarea id="explain-msg" placeholder="追问或输入新问题... （Shift+Enter 换行，Enter 发送）" rows="1" style="border:none;outline:none;resize:none;padding:12px 16px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);flex:1;line-height:1.5;max-height:120px;overflow-y:auto;" onkeydown="handleExplainKey(event)"></textarea>
+          <button onclick="sendExplain()">发送</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn" onclick="markDone(1);switchPanel('quiz',document.getElementById('nav-quiz'))">完成，去刷题 →</button>
+      </div>
+    </div>
+
+    <!-- 私教刷题 -->
+    <div class="panel" id="panel-quiz">
+      <div class="panel-title">私教刷题</div>
+      <div class="panel-desc">先用 AI 出 5 道试水，摸清薄弱点，知道哪里需要重点刷。AI 批改完再去纸质资料大量练习。</div>
+      <div class="section-label">练习主题</div>
+      <div class="input-row">
+        <input type="text" id="quiz-topic" placeholder="例如：死锁四个必要条件、高数换元积分、计网拥塞控制..." />
+        <select id="quiz-count" style="max-width:90px;">
+          <option value="3">3 题</option>
+          <option value="5" selected>5 题</option>
+          <option value="8">8 题</option>
+        </select>
+      </div>
+      <div class="action-row">
+        <button class="btn primary" onclick="runQuiz()">AI 出题 →</button>
+        <button class="btn" onclick="markDone(2);switchPanel('feynman',document.getElementById('nav-feynman'))">完成，去费曼 →</button>
+      </div>
+      <div id="quiz-area" style="margin-top:16px;"></div>
+      <div id="quiz-submit-row" style="display:none;margin-top:12px;">
+        <button class="btn primary" onclick="submitQuiz()">提交作答，批改讲解 →</button>
+      </div>
+      <div class="response-box empty" id="quiz-feedback" style="display:none;"></div>
+    </div>
+
+    <!-- 费曼检验 -->
+    <div class="panel" id="panel-feynman">
+      <div class="panel-title">费曼检验</div>
+      <div class="panel-desc">选择模式，然后开口讲。讲完这轮就去纸质刷题——AI 辅助结束，进入真实战场。</div>
+
+      <div class="section-label">挑战模式</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-novice" onclick="setMode('novice')">👶 小白追问</button>
+        <button class="mode-btn" id="btn-professor" onclick="setMode('professor')">👨‍🏫 教授面试</button>
+      </div>
+      <div class="mode-hint novice" id="mode-hint">
+        AI 扮演零基础学生，持续追问你讲不清楚的地方。适合第一次梳理思路，建立表达框架。
+      </div>
+
+      <div class="section-label">要讲解的概念</div>
+      <div class="input-row">
+        <input type="text" id="feynman-topic" placeholder="例如：TCP三次握手、操作系统页面置换、高数ε-δ定义..." />
+        <button class="btn primary" onclick="startFeynman()">开始检验 →</button>
+      </div>
+
+      <div class="chat-wrap" id="feynman-wrap" style="display:none;">
+        <div class="chat-box" id="feynman-chat"></div>
+        <div class="chat-input">
+          <textarea id="feynman-msg" placeholder="输入你的解释... （Shift+Enter 换行，Enter 发送）" rows="1" style="border:none;outline:none;resize:none;padding:12px 16px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);flex:1;line-height:1.5;max-height:120px;overflow-y:auto;" onkeydown="handleFeynmanKey(event)"></textarea>
+          <button onclick="sendFeynman()">发送</button>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <button class="btn" onclick="markDone(3);markDone(4)">✅ 本轮完成，关闭 AI，去纸质刷题</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Config Modal -->
+<div class="config-panel" id="config-panel" onclick="if(event.target===this)closeConfig()">
+  <div class="config-box">
+    <div class="config-title">⚙️ API 配置</div>
+    <div class="config-sub">Key 只保存在本地浏览器，不会上传任何服务器。推荐 DeepSeek，国内直连且极省钱。</div>
+    <div class="field">
+      <label>AI 提供商</label>
+      <select id="cfg-provider" onchange="onProviderChange()">
+        <option value="deepseek">DeepSeek（推荐，国内直连，超省钱）</option>
+        <option value="zhipu">智谱 GLM（GLM-Flash 完全免费）</option>
+        <option value="minimax">Minimax（国内直连）</option>
+        <option value="openai">OpenAI（需科学上网）</option>
+        <option value="custom">自定义（中转站 / Ollama）</option>
+      </select>
+    </div>
+    <div class="price-tip" id="price-tip"></div>
+    <div class="field" id="model-field">
+      <label>模型</label>
+      <select id="cfg-model"></select>
+    </div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-key" placeholder="粘贴你的 API Key..." />
+      <div class="hint" id="key-hint"></div>
+    </div>
+    <div class="field" id="custom-url-field" style="display:none;">
+      <label>API Base URL</label>
+      <input type="text" id="cfg-url" placeholder="https://your-proxy.com/v1" />
+      <div class="hint">末尾不加斜杠，需兼容 OpenAI 格式</div>
+    </div>
+    <div class="field" id="custom-model-field" style="display:none;">
+      <label>模型名称</label>
+      <input type="text" id="cfg-custom-model" placeholder="例如：llama3, qwen2.5, deepseek-chat..." />
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeConfig()">取消</button>
+      <button class="btn primary" onclick="saveConfig()">保存配置</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROVIDERS = {
+  deepseek: { baseUrl:'https://api.deepseek.com/v1', models:['deepseek-chat','deepseek-reasoner'], tip:'💰 约 ¥1 = 100万 tokens，备考一整年也花不了多少钱。新用户有免费额度。', keyHint:'去 <a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com</a> 注册获取' },
+  zhipu: { baseUrl:'https://open.bigmodel.cn/api/paas/v4', models:['glm-4-flash','glm-4-air','glm-4'], tip:'🆓 GLM-4-Flash 完全免费，无需科学上网，学习备考完全够用。', keyHint:'去 <a href="https://open.bigmodel.cn/" target="_blank">open.bigmodel.cn</a> 注册，Flash 免费' },
+  minimax: { baseUrl:'https://api.minimax.chat/v1', models:['MiniMax-Text-01','abab6.5s-chat'], tip:'🇨🇳 国内访问稳定，无需科学上网。', keyHint:'去 <a href="https://platform.minimaxi.com/" target="_blank">platform.minimaxi.com</a> 获取' },
+  openai: { baseUrl:'https://api.openai.com/v1', models:['gpt-4o-mini','gpt-4o'], tip:'⚠️ 需要科学上网。推荐 gpt-4o-mini，便宜且够用。', keyHint:'去 <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> 获取' },
+  custom: { baseUrl:'', models:[], tip:'🔧 支持任何 OpenAI 兼容格式，包括中转站和本地 Ollama。Ollama 的 Key 填 any 即可。', keyHint:'本地 Ollama 等无需真实 Key，填 any 即可' }
+};
+
+let cfg = Object.assign({ provider:'deepseek', model:'deepseek-chat', key:'', baseUrl:'', customModel:'' }, JSON.parse(localStorage.getItem('ai-learn-cfg')||'{}'));
+let quizQuestions = [];
+let feynmanHistory = [], feynmanTopic = '', feynmanMode = 'novice';
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+let timerTotal = 90*60, timerLeft = 90*60, timerRunning = false, timerInterval = null;
+const PHASES = [[0,900,'① 学习地图','建立知识框架'],[900,2100,'② 通俗讲解','吃透核心概念'],[2100,3300,'③ 刷题试水','摸清考点分布'],[3300,Infinity,'④ 费曼检验','输出检验理解']];
+
+function setTimer(m) { clearInterval(timerInterval); timerTotal=m*60; timerLeft=m*60; timerRunning=false; document.getElementById('timer-start-btn').textContent='▶ 开始'; document.getElementById('timer-phase').textContent='准备开始'; renderTimer(); }
+function toggleTimer() {
+  if(timerLeft<=0){resetTimer();return;}
+  timerRunning=!timerRunning;
+  document.getElementById('timer-start-btn').textContent=timerRunning?'⏸ 暂停':'▶ 继续';
+  if(timerRunning){ timerInterval=setInterval(()=>{ timerLeft--; renderTimer(); if(timerLeft<=0){clearInterval(timerInterval);timerRunning=false;document.getElementById('timer-start-btn').textContent='↺ 重置';document.getElementById('timer-phase').textContent='⏰ 时间到！去纸质刷题';if('Notification' in window&&Notification.permission==='granted')new Notification('AI学习时间结束',{body:'关掉电脑，拿起纸质资料刷题！'});}},1000);}
+  else clearInterval(timerInterval);
+}
+function resetTimer(){ clearInterval(timerInterval); timerRunning=false; timerLeft=timerTotal; document.getElementById('timer-start-btn').textContent='▶ 开始'; document.getElementById('timer-phase').textContent='准备开始'; renderTimer(); }
+function renderTimer(){
+  const m=Math.floor(timerLeft/60), s=timerLeft%60, pct=timerLeft/timerTotal*100;
+  document.getElementById('timer-display').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('timer-display').className='timer-display'+(timerLeft<=0?' done':timerLeft<timerTotal*0.2?' warning':'');
+  document.getElementById('timer-bar').style.width=pct+'%';
+  document.getElementById('timer-bar').className='timer-bar'+(timerLeft<=0?' done':timerLeft<timerTotal*0.2?' warning':'');
+  if(timerRunning&&timerLeft>0){ const elapsed=timerTotal-timerLeft; const p=PHASES.find(([a,b])=>elapsed>=a&&elapsed<b); if(p){document.getElementById('timer-phase').textContent=p[2];document.getElementById('timer-sub').textContent=p[3];}}
+}
+if('Notification' in window&&Notification.permission==='default') Notification.requestPermission();
+
+// ── Flow bar ──────────────────────────────────────────────────────────────────
+function markDone(i){ const el=document.getElementById('flow-'+i); if(el){el.classList.remove('current');el.classList.add('done');} const nx=document.getElementById('flow-'+(i+1)); if(nx)nx.classList.add('current'); }
+
+// ── Panel switch ──────────────────────────────────────────────────────────────
+function switchPanel(id,el){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('panel-'+id).classList.add('active'); if(el)el.classList.add('active'); }
+
+// ── API ───────────────────────────────────────────────────────────────────────
+function getUrl(){ return (cfg.provider==='custom'?cfg.baseUrl:PROVIDERS[cfg.provider].baseUrl)+'/chat/completions'; }
+function getModel(){ return cfg.provider==='custom'?cfg.customModel:cfg.model; }
+
+async function callAI(system, user, targetId, extraMsgs){
+  if(!cfg.key){alert('请先点左下角「API 配置」填入 API Key！');return '';}
+  const box=document.getElementById(targetId);
+  if(box){box.classList.remove('empty');box.classList.add('loading');box.textContent='';}
+  const msgs=extraMsgs||[{role:'user',content:user}];
+  try{
+    const r=await fetch(getUrl(),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},body:JSON.stringify({model:getModel(),max_tokens:1500,messages:[{role:'system',content:system},...msgs]})});
+    if(!r.ok){let e=`HTTP ${r.status}`;try{const j=await r.json();e=j.error?.message||e;}catch{}if(box){box.classList.remove('loading');box.textContent='❌ 请求失败：'+e;}return '';}
+    const data=await r.json(); const text=data.choices?.[0]?.message?.content||'（无返回内容）';
+    if(box){box.classList.remove('loading');box.textContent=text;} return text;
+  }catch(e){if(box){box.classList.remove('loading');box.textContent='❌ 网络错误：'+e.message;}return '';}
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+function openConfig(){ document.getElementById('cfg-provider').value=cfg.provider; document.getElementById('cfg-key').value=cfg.key; document.getElementById('cfg-url').value=cfg.baseUrl; document.getElementById('cfg-custom-model').value=cfg.customModel; onProviderChange(); document.getElementById('config-panel').classList.add('open'); }
+function closeConfig(){ document.getElementById('config-panel').classList.remove('open'); }
+function onProviderChange(){
+  const p=document.getElementById('cfg-provider').value, info=PROVIDERS[p];
+  document.getElementById('price-tip').textContent=info.tip;
+  document.getElementById('key-hint').innerHTML=info.keyHint;
+  const sel=document.getElementById('cfg-model');
+  sel.innerHTML=info.models.map(m=>`<option value="${m}">${m}</option>`).join('');
+  if(cfg.provider===p&&cfg.model&&info.models.includes(cfg.model))sel.value=cfg.model;
+  const isCustom=p==='custom';
+  document.getElementById('custom-url-field').style.display=isCustom?'block':'none';
+  document.getElementById('custom-model-field').style.display=isCustom?'block':'none';
+  document.getElementById('model-field').style.display=isCustom?'none':'block';
+}
+function saveConfig(){
+  cfg.provider=document.getElementById('cfg-provider').value;
+  cfg.model=document.getElementById('cfg-model').value;
+  cfg.key=document.getElementById('cfg-key').value.trim();
+  cfg.baseUrl=document.getElementById('cfg-url').value.trim();
+  cfg.customModel=document.getElementById('cfg-custom-model').value.trim();
+  localStorage.setItem('ai-learn-cfg',JSON.stringify(cfg));
+  document.getElementById('api-dot').className='api-dot'+(cfg.key?' ok':'');
+  closeConfig(); alert(cfg.key?'✅ 配置已保存！现在可以开始学习了。':'⚠️ 未填 API Key，功能暂不可用。');
+}
+document.getElementById('api-dot').className='api-dot'+(cfg.key?' ok':'');
+
+// ── 学习地图 ──────────────────────────────────────────────────────────────────
+async function runMap(){
+  const topic=document.getElementById('map-topic').value.trim(); if(!topic){alert('请输入学习主题');return;}
+  const level=document.getElementById('map-level').value, bg=document.getElementById('map-background').value.trim();
+  await callAI(`你是考研学习规划师，用中文回答。根据用户背景裁剪掉已掌握内容，只给真正需要的部分：
+1. 📌 核心知识点（精简，跳过用户已会的）
+2. 🛤 学习路径（3阶段，每阶段目标+时间）
+3. ✅ 可检验的里程碑
+4. ⚠️ 考研高频考点和易错点提示
+格式清晰，用emoji分隔。`, `水平：${level}。主题：【${topic}】。${bg?'我的背景：'+bg:''}\n请给我裁剪后的考研学习规划。`, 'map-result');
+  markDone(0);
+}
+
+// ── 通俗讲解（对话模式）────────────────────────────────────────────────────────
+let explainHistory = [];
+const SYS_EXPLAIN = `你是擅长用比喻讲解复杂知识的老师，用中文。
+第一次解释时用这个结构：
+1. 🎯 一句话定义
+2. 🌟 核心比喻（日常生活类比，零基础能瞬间懂）
+3. 🔍 稍微展开（避免术语，必须用时要解释）
+4. 💡 实际例子
+5. 🎁 一句话总结精髓
+后续追问时保持同样的风格，延续上下文，不要重复之前已讲过的内容。语言活泼，像跟朋友聊天。`;
+
+function startExplain(){
+  const topic=document.getElementById('explain-topic').value.trim();
+  if(!topic){alert('请输入知识点');return;}
+  if(!cfg.key){alert('请先配置 API Key');return;}
+  explainHistory=[];
+  const wrap=document.getElementById('explain-wrap');
+  wrap.style.display='block';
+  document.getElementById('explain-chat').innerHTML='';
+  sendExplainMsg(`用比喻零基础解释【${topic}】`);
+}
+
+function clearExplain(){
+  explainHistory=[];
+  document.getElementById('explain-chat').innerHTML='';
+  document.getElementById('explain-wrap').style.display='none';
+  document.getElementById('explain-topic').value='';
+}
+
+function handleExplainKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendExplain();}
+}
+
+function sendExplain(){
+  const ta=document.getElementById('explain-msg');
+  const msg=ta.value.trim(); if(!msg)return;
+  ta.value=''; ta.style.height='auto';
+  sendExplainMsg(msg);
+}
+
+async function sendExplainMsg(userText){
+  if(!cfg.key){alert('请先配置 API Key');return;}
+  addExplainMsg('user',userText);
+  explainHistory.push({role:'user',content:userText});
+  const thinking=addExplainMsg('ai','思考中...');
+  try{
+    const r=await fetch(getUrl(),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
+      body:JSON.stringify({model:getModel(),max_tokens:1000,messages:[{role:'system',content:SYS_EXPLAIN},...explainHistory]})});
+    if(!r.ok){let e=`HTTP ${r.status}`;try{const j=await r.json();e=j.error?.message||e;}catch{}thinking.textContent='❌ 请求失败：'+e;return;}
+    const data=await r.json();
+    const reply=data.choices?.[0]?.message?.content||'出错了，请重试。';
+    thinking.textContent=reply;
+    explainHistory.push({role:'assistant',content:reply});
+    document.getElementById('explain-chat').scrollTop=9999;
+  }catch(e){thinking.textContent='❌ 网络错误：'+e.message;}
+}
+
+function addExplainMsg(role,text){
+  const chat=document.getElementById('explain-chat');
+  const d=document.createElement('div');
+  d.className='chat-msg '+role; d.textContent=text;
+  chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
+}
+
+// ── 私教刷题 ──────────────────────────────────────────────────────────────────
+async function runQuiz(){
+  const topic=document.getElementById('quiz-topic').value.trim(); if(!topic){alert('请输入练习主题');return;}
+  if(!cfg.key){alert('请先配置 API Key');return;}
+  const count=document.getElementById('quiz-count').value;
+  quizQuestions=[]; const area=document.getElementById('quiz-area');
+  area.innerHTML='<div style="color:var(--text3);font-size:14px;padding:8px 0;">正在出题...</div>';
+  document.getElementById('quiz-submit-row').style.display='none'; document.getElementById('quiz-feedback').style.display='none';
+  try{
+    const r=await fetch(getUrl(),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},body:JSON.stringify({model:getModel(),max_tokens:1000,messages:[{role:'system',content:`出${count}道考研难度练习题，格式：\nQ1: 题目\nQ2: 题目\n（每行一题，不含答案）`},{role:'user',content:`出${count}道关于"${topic}"的练习题，考研难度，由浅入深，涵盖重要考点。`}]})});
+    const data=await r.json(); const text=data.choices?.[0]?.message?.content||'';
+    const lines=text.split('\n').filter(l=>/^Q\d+[：:]/i.test(l.trim()));
+    quizQuestions=lines.map(l=>l.replace(/^Q\d+[：:\s]*/i,'').trim());
+    area.innerHTML='';
+    if(!quizQuestions.length){area.innerHTML=`<div style="font-size:14px;color:var(--text2);white-space:pre-wrap;">${text}</div>`;return;}
+    quizQuestions.forEach((q,i)=>{const d=document.createElement('div');d.className='quiz-item';d.innerHTML=`<div class="quiz-q">${i+1}. ${q}</div><input class="quiz-answer" id="ans-${i}" placeholder="输入你的答案..." />`;area.appendChild(d);});
+    document.getElementById('quiz-submit-row').style.display='block';
+  }catch(e){area.innerHTML=`<div style="color:var(--red-fg);">出题失败：${e.message}</div>`;}
+}
+
+async function submitQuiz(){
+  const topic=document.getElementById('quiz-topic').value.trim();
+  const answers=quizQuestions.map((q,i)=>`题目${i+1}：${q}\n学生回答：${document.getElementById('ans-'+i)?.value.trim()||'（未作答）'}`).join('\n\n');
+  document.getElementById('quiz-feedback').style.display='block';
+  await callAI('你是考研批改老师，用中文。逐题标注✓或✗，错题给正确答案和详细讲解。最后：总体评价、薄弱点分析、建议去纸质资料重点练哪类题型。语气鼓励。',`主题：${topic}\n\n${answers}`,'quiz-feedback');
+  markDone(2);
+}
+
+// ── 费曼检验 ──────────────────────────────────────────────────────────────────
+const PROMPTS = {
+  novice: t=>`你是完全不懂专业知识的大一新生，用中文。用户在向你解释："${t}"。
+规则：像真的不懂一样追问，遇到术语就问"这是什么意思"，每次只问一个问题。
+只有当你完全理解了，才说："🎉 通过！你讲得很清楚了。\n核心：[一句话总结]"。不要轻易说通过。`,
+  professor: t=>`你是严格的计算机系教授，正在对考研面试生进行提问，话题："${t}"。
+规则：直接指出逻辑跳跃和不严谨之处，追问边界情况和底层原理，可以说"等一下，这里不对"。每次一个尖锐问题。
+只有解释准确完整有逻辑时才说："好，这部分你理解正确。要点：[核心总结]"。标准要高。`
+};
+
+function setMode(mode){
+  feynmanMode=mode;
+  document.getElementById('btn-novice').className='mode-btn'+(mode==='novice'?' active':'');
+  document.getElementById('btn-professor').className='mode-btn'+(mode==='professor'?' active':'');
+  const h=document.getElementById('mode-hint');
+  h.className='mode-hint '+mode;
+  h.textContent=mode==='novice'?'AI 扮演零基础学生，持续追问你讲不清楚的地方。适合第一次梳理思路，建立表达框架。':'AI 扮演严格教授进行面试，直接指出你的逻辑漏洞和不严谨之处。适合深度检验，冲刺复试。';
+}
+
+function startFeynman(){
+  const topic=document.getElementById('feynman-topic').value.trim(); if(!topic){alert('请输入要讲解的概念');return;}
+  feynmanTopic=topic; feynmanHistory=[];
+  document.getElementById('feynman-wrap').style.display='block';
+  document.getElementById('feynman-chat').innerHTML='';
+  const first=feynmanMode==='novice'?`好的！请向我解释"${topic}"吧，我会认真听，有不懂的地方随时问你。`:`开始。请解释"${topic}"的核心原理。注意，我会追问细节，请确保准确严谨。`;
+  addMsg('ai',first,feynmanMode);
+  feynmanHistory.push({role:'assistant',content:first});
+}
+
+function addMsg(role,text,mode){
+  const chat=document.getElementById('feynman-chat');
+  const d=document.createElement('div');
+  d.className='chat-msg '+role+(role==='ai'&&mode==='professor'?' prof':'');
+  d.textContent=text; chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
+}
+
+function handleFeynmanKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendFeynman();}
+}
+
+async function sendFeynman(){
+  const ta=document.getElementById('feynman-msg');
+  const msg=ta.value.trim();
+  if(!msg)return; if(!cfg.key){alert('请先配置 API Key');return;}
+  ta.value=''; ta.style.height='auto'; addMsg('user',msg); feynmanHistory.push({role:'user',content:msg});
+  const thinking=addMsg('ai','思考中...',feynmanMode);
+  try{
+    const r=await fetch(getUrl(),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},body:JSON.stringify({model:getModel(),max_tokens:600,messages:[{role:'system',content:PROMPTS[feynmanMode](feynmanTopic)},...feynmanHistory]})});
+    const data=await r.json(); const reply=data.choices?.[0]?.message?.content||'出错了，请重试。';
+    thinking.textContent=reply; feynmanHistory.push({role:'assistant',content:reply});
+    document.getElementById('feynman-chat').scrollTop=9999;
+  }catch(e){thinking.textContent='请求失败：'+e.message;}
+}
+</script>
+</body>
+</html>
